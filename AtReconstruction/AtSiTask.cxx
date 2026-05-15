@@ -127,7 +127,12 @@ void AtSiTask::Exec(Option_t *opt)
       double maxADC{};
       int timestamp{};
       if (pseudoHits.size()) {
-         traceCharge = pseudoHits[0]->GetTraceIntegral();
+	 if (fSiMap->IsCalibrationSet()) {
+		 traceCharge = fSiMap->GetCalibratedELoss(StripNum, pseudoHits[0]->GetTraceIntegral());
+	 }
+	 else {
+		 traceCharge = pseudoHits[0]->GetTraceIntegral();
+	 }
          maxADC = pseudoHits[0]->GetCharge();
          timestamp = pseudoHits[0]->GetTimeStamp();
       } else {
