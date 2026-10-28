@@ -4,6 +4,12 @@
 #define cGREEN "\033[1;32m"
 
 
+double linear(double *x, double *params) {
+  double xx = *x;
+  return params[0] + params[1]*xx;
+  std::cout << "xx = " << params[1] << std::endl;
+}
+
 bool reduceFunc(AtRawEvent *evt){
   return (evt->GetNumPads() > 0) && evt->IsGood();
 }
@@ -28,16 +34,18 @@ void unpack_rcnp(int run_num = 2011){
   TString inputFile = filepath + fileName + fileExt;
   TString scriptfile = "rcnp_map_size.xml";
   TString siMapFile = "rcnp_si_map.xml";
+  TString gaggMapFile = "rcnp_gagg_map.xml";
   TString beamPadsFile = "BeamPads_RCNP.csv";
   TString dir = getenv("VMCWORKDIR");
   TString mapDir = dir + "/scripts/" + scriptfile;
   TString scriptdir = dir + "/scripts/" + scriptfile;
   TString simapdir = dir + "/scripts/" + siMapFile;
+  TString gaggmapdir = dir + "/scripts/"+ gaggMapFile; 
   TString beamPadsDir = dir + "/scripts/" + beamPadsFile;
   TString dataDir = dir + "/macro/data/";
   TString geomDir = dir + "/geometry/";
   gSystem->Setenv("GEOMPATH", geomDir.Data());
-  TString outputFile = outputpath + fileName + ".root";
+  TString outputFile = outputpath + fileName + "_FULL_CAL.root";
   TString loggerFile = dataDir + "ATTPCLog.log";
   TString digiParFile = dir + "/parameters/" + parameterFile;
   TString geoManFile = dir + "/geometry/RCNP_ATTPC_494_3torr.root";
@@ -69,6 +77,13 @@ void unpack_rcnp(int run_num = 2011){
 
   auto fAtSiPtr = std::make_unique<AtSiMap>();
   fAtSiPtr->ParseXMLMap(simapdir.Data());
+  fAtSiPtr->SetCalibrationFunction(linear);
+  fAtSiPtr->ParseCalibrationParameters("parfile.csv", 2);
+
+  auto fAtGAGGPtr = std::make_unique<AtGAGGMap>();
+  fAtGAGGPtr->ParseXMLMap(gaggmapdir.Data()); //Testing GAGG calibration (next two lines)
+  fAtGAGGPtr->SetCalibrationFunction(linear);
+  fAtGAGGPtr->ParseCalibrationParameters("parfileGAGG.csv", 2);
 
   //auto unpacker = std::make_unique<AtHDFUnpacker>(fAtMapPtr);
   //auto unpacker = std::make_unique<AtFRIBLinkedHDFUnpacker>(fAtMapPtr);
@@ -82,15 +97,25 @@ void unpack_rcnp(int run_num = 2011){
 
   auto thresholdSi = 50;
   auto psaSi = std::make_unique<AtPSASi>();
+  psaSi->SetLowBLRegion(-50, -30);
+  psaSi->SetHighBLRegion(80, 100);
+  psaSi->SetEnergyIntegral(-20,20);
   psaSi->SetThreshold(thresholdSi);
 
   AtSiTask *siTask = new AtSiTask(std::move(psaSi), std::move(fAtSiPtr));
   siTask->SetPersistence(kTRUE);
 
+  //GAGG Processing from Tim
   auto thresholdGagg = 10;
   auto psaGagg = std::make_unique<AtPSASi>();
   psaGagg->SetThreshold(thresholdGagg);
-  AtGaggTask *gaggTask = new AtGaggTask(std::move(psaGagg));
+  psaGagg->SetLowBLRegion(-40,-20);
+  psaGagg->SetHighBLRegion(60,80);
+  psaGagg->SetEnergyIntegral(-1,1);
+  psaGagg->SetFitClipped(true);
+  psaGagg->SetOverflowReconstruction(true);
+  AtGaggTask *gaggTask = new AtGaggTask(std::move(psaGagg), std::move(fAtGAGGPtr));
+  //AtGaggTask *gaggTask = new AtGaggTask(std::move(psaGagg));
   gaggTask->SetPersistence(kTRUE);
 
   AtFilterSubtraction *filter = new AtFilterSubtraction(fAtMapPtr);
@@ -101,7 +126,7 @@ void unpack_rcnp(int run_num = 2011){
   filterTask->SetPersistence(false);
   filterTask->SetFilterAux(false);
 
-  auto threshold = 30;
+  auto threshold = 140;
 
   // auto psa = new AtPSASimple2();
   auto psa = new AtPSAMax();
@@ -122,14 +147,14 @@ void unpack_rcnp(int run_num = 2011){
   AtRansacTask *ransacTask = new AtRansacTask();
   ransacTask->SetPersistence(kTRUE);
   ransacTask->SetVerbose(kTRUE);
-  ransacTask->SetDistanceThreshold(12.0); //12
+  ransacTask->SetDistanceThreshold(12.0); //12 //AMBER OG entry: 12.0
   ransacTask->SetMinHitsLine(30); //10
   // in AtRansacTask pattern tyepe set to line: auto patternType = AtPatternType::kLine;
-  //1=Homemade Ransac(default); 2=Homemade Mlesac; 3=Homemade Lmeds; //4
+  //1=Homemade Ransac(default); 2=Homemade Mlesac; 3=Homemade Lmeds, 4=Weighted Charge Ransac; //4 // AMBER OG entry: 1
   ransacTask->SetAlgorithm(1);
-  // SampleMethod{kUniform=0,kChargeWeighted=1,kGaussian=2, kWeightGaussian=3, kWeightedY=4};//2
+  // SampleMethod{kUniform=0,kChargeWeighted=1,kGaussian=2, kWeightGaussian=3, kWeightedY=4, kWeighted GaussianTrunc = 5};//2 // AMBER OG entry: 5
   ransacTask->SetRanSamMode(5);
-  ransacTask->SetChargeThreshold(20); //150
+  ransacTask->SetChargeThreshold(20); //150 // AMBER OG entry: 20
   // ransacTask->SetNumItera(500);
 
 /*

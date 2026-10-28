@@ -1,3 +1,8 @@
+#include <fstream>
+#include <iomanip>
+//#include <stdio.h>
+//#include <windows.h>
+
 TGraph* ReadKinematics(TString kineFile);
 Double_t omega(Double_t x, Double_t y, Double_t z);
 std::tuple<double, double> kine_2b(Double_t m1, Double_t m2, Double_t m3, Double_t m4, Double_t K_proj, Double_t thetalab, Double_t K_eject);
@@ -17,7 +22,7 @@ void kine()
       c->SetPoint(4, -1e9, -1e9);
       return c;
    };
-   //   FILE NAME
+   // File Name Input
    int runStart, runEnd;
    std::cout << "Run Start: ";
    std::cin >> runStart;
@@ -25,18 +30,17 @@ void kine()
    std::cin >> runEnd;
 
 
-   // File input. There has to be a more compressed way to do this. As in, specify 3000 and then number of files
-   // TO DO: 
-   // create loop that makes an array the size of the start and end points then fills with iterative numbers to loop over. That way you don't 
-   // have to keep changing this line
-   //std::vector runNums = {3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011};
-   //std::vector runNums = {5159};
+   // File iteration
    std::vector<int> runNums;
    for (int i=runStart; i<= runEnd; ++i) {
 	   runNums.push_back(i); 
    }
-
-   TString outfname= Form("kineC_hists_%dto%d_stripsTest.root", runStart, runEnd); 
+   
+   double col_boundaries[6] = {0,28,52,76,99,128};
+   double row_boundaries[6] = {0,30,54,78,101,128};
+	   
+   //TString outfname= Form("kine_%dto%d_delEvEattempt_digisplit_countfixmaybe_rejectplt_multi2.root", runStart, runEnd); 
+   TString outfname= Form("kine_%dto%d_multifix_veto_10232026_CUTPID.root", runStart, runEnd); 
    TFile *outfile=new TFile(outfname,"recreate");
 
    // AtMap to check if a hit belong to a big pad or small pad.
@@ -78,7 +82,7 @@ void kine()
    TCutG *cutKineBProton = (TCutG *)cutKineFile->Get("cutKineBProton");
    cutKineFile->Close();*/
    //Here Amber	
-   /*TFile *cutPIDFilep = new TFile("./cutFiles/PID_proton.root", "READ"); 
+   TFile *cutPIDFilep = new TFile("./cutFiles/PID_proton.root", "READ"); 
    TCutG *cutPIDproton = (TCutG *)cutPIDFilep->Get("cutPIDproton");
    cutPIDFilep->Close();
 
@@ -89,7 +93,7 @@ void kine()
    TFile *cutPIDFile2 = new TFile("./cutFiles/PID_3He.root", "READ"); 
    TCutG *cutPID3He = (TCutG *)cutPIDFile2->Get("cutPID3He");
    cutPIDFile2->Close();
-   // Original cut files 
+   /*// Original cut files 
    TFile *cutSiPIDFile = new TFile("./cutFiles/SiPID.root", "READ");
    TCutG *cutSiB = (TCutG *)cutSiPIDFile->Get("cutSiPIDB");
    TCutG *cutSiC = (TCutG *)cutSiPIDFile->Get("cutSiPIDC");
@@ -98,7 +102,7 @@ void kine()
    cutSiPIDFile->Close();
    */
 
-   TFile *cutGaggPIDFile = new TFile("./cutFiles/GAGGPID.root", "READ");
+   /*TFile *cutGaggPIDFile = new TFile("./cutFiles/GAGGPID.root", "READ");
    TCutG *cutGaggB = (TCutG *)cutGaggPIDFile->Get("cutGAGGPIDB");
    TCutG *cutGaggBe = (TCutG *)cutGaggPIDFile->Get("cutGAGGPIDBe");
    TCutG *cutGaggLi = (TCutG *)cutGaggPIDFile->Get("cutGAGGPIDLi");
@@ -119,23 +123,27 @@ void kine()
 
    TFile *cutSiCPIDFile = new TFile("./cutFiles/cutFile_CTestv2.root", "READ");
    TCutG *cutSiC = (TCutG *)cutSiCPIDFile->Get("CTest");
-   cutSiCPIDFile->Close();
+   cutSiCPIDFile->Close();*/
+
+
+   //TFile *cutSi13BPIDFile = new TFile("./cutFiles/cut20to20_13B.root", "READ");
+   //TCutG *cutSi13B = (TCutG *)cutSi13BPIDFile->Get("cut20to20_13B");
+   //cutSi13BPIDFile->Close();
 
    //Bypass cut files edit
-   TCutG *cutPIDproton  = makeOpenCut();
+   /*TCutG *cutPIDproton  = makeOpenCut();
    TCutG *cutPIDdeuteron = makeOpenCut();
-   TCutG *cutPID3He     = makeOpenCut();
+   TCutG *cutPID3He     = makeOpenCut();*/
 
-   //TCutG *cutSiB   = makeOpenCut();
-   //TCutG *cutSiC   = makeOpenCut();
-   //TCutG *cutSi13B = makeOpenCut();
-   //TCutG *cutSiBe  = makeOpenCut();
+   TCutG *cutSiB   = makeOpenCut();
+   TCutG *cutSiC   = makeOpenCut();
+   TCutG *cutSi13B = makeOpenCut();
+   TCutG *cutSiBe  = makeOpenCut();
 
-   /*TCutG *cutGaggB  = makeOpenCut();
+   TCutG *cutGaggB  = makeOpenCut();
    TCutG *cutGaggBe = makeOpenCut();
    TCutG *cutGaggLi = makeOpenCut();
-   TCutG *cutGaggHe = makeOpenCut();*/
-
+   TCutG *cutGaggHe = makeOpenCut();
    
    // Kinematic curve
    TGraph* kinecurve_3HeGS = new TGraph("ang_lab_cm_3HeGS.txt","%lg %*s %lg");
@@ -152,44 +160,19 @@ void kine()
    outfile->cd();
    
    // Histogram definitions.
-   TH2F *histRangeVThetaLAB = new TH2F("histRangeVThetaLAB", "histRangeVThetaLAB", 180, 0, 180, 1030, 0, 1030);
-   TH2F *histTrackThetaLABRange3He = new TH2F("histTrackThetaLABRange3He", "histTrackThetaLABRange3He", 1030, 0, 1030, 180, 0, 180);
-   TH2F *histTrackThetaLABRange3HeSiGaggBe = new TH2F("histTrackThetaLABRange3HeSiGaggBe", "histTrackThetaLABRange3HeSiGaggBe", 506, 0, 1030, 90, 0, 180);
-   TH2F *histEstimatedKinEVThetaLABTotal = new TH2F("histEstimatedKinEVThetaLABTotal", "histEstimatedKinEVThetaLABTotal", 360, 0, 180, 500, 0, 20);
-   TH2F *histEstimatedKinEVThetaLAB3He = new TH2F("histEstimatedKinEVThetaLAB3He", "histEstimatedKinEVThetaLAB3He", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLAB3HeSiBe = new TH2F("histEstimatedKinEVThetaLAB3HeSiBe", "histEstimatedKinEVThetaLAB3HeSiBe", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLAB3HeSiGaggBe = new TH2F("histEstimatedKinEVThetaLAB3HeSiGaggBe", "histEstimatedKinEVThetaLAB3HeSiGaggBe", 360, 0, 180, 300, 0, 30);
-   TH2F *histEstimatedKinEVThetaLAB3HeSiGaggBetrack1 = new TH2F("histEstimatedKinEVThetaLAB3HeSiGaggBetrack1", "histEstimatedKinEVThetaLAB3HeSiGaggBetrack1", 180, 0, 180, 300, 0, 30);
-   TH2F *histEstimatedKinEVThetaLAB3HeSiGaggBetrack2 = new TH2F("histEstimatedKinEVThetaLAB3HeSiGaggBetrack2", "histEstimatedKinEVThetaLAB3HeSiGaggBetrack2", 180, 0, 180, 300, 0, 30);
-   TH2F *histEstimatedKinEVThetaLABkinett = new TH2F("histEstimatedKinEVThetaLABkinett", "histEstimatedKinEVThetaLABkinett", 180, 0, 180, 300, 0, 30);
-   TH2F *histThetaLABThetaLAB = new TH2F("histThetaLABThetaLAB", "histThetaLABThetaLAB", 360, 0, 180, 360, 0, 180);
-   TH2F *histThetaLABThetaLABKine = new TH2F("histThetaLABThetaLABKine", "histThetaLABThetaLABKine", 500, 0, 50, 150, 0, 15);
-   TH2F *histThetaLABThetaLAB3HeSiGaggBe = new TH2F("histThetaLABThetaLAB3HeSiGaggBe", "histThetaLABThetaLAB3HeSiGaggBe", 360, 0, 180, 360, 0, 180);
-   TH2F *histEstimatedKinEVThetaLAB2H  = new TH2F("histEstimatedKinEVThetaLAB2H", "histEstimatedKinEVThetaLAB2H", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLAB1H  = new TH2F("histEstimatedKinEVThetaLAB1H", "histEstimatedKinEVThetaLAB1H", 180, 0, 180, 250, 0, 20);      
-   TH2F *histEstimatedKinEVThetaLABSiB  = new TH2F("histEstimatedKinEVThetaLABSiB", "histEstimatedKinEVThetaLABSiB", 180, 0, 180, 250, 0, 20);      
-   TH2F *histEstimatedKinEVThetaLABSiC  = new TH2F("histEstimatedKinEVThetaLABSiC", "histEstimatedKinEVThetaLABSiC", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLABSi13B  = new TH2F("histEstimatedKinEVThetaLABSi13B", "histEstimatedKinEVThetaLABSi13B", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLABSiBe  = new TH2F("histEstimatedKinEVThetaLABSiBe", "histEstimatedKinEVThetaLABSiBe", 180, 0, 180, 250, 0, 20);
-   TH2F *histEstimatedKinEVThetaLABSiGaggBe  = new TH2F("histEstimatedKinEVThetaLABSiGaggBe", "histEstimatedKinEVThetaLABSiGaggBe", 180, 0, 180, 250, 0, 20);
-   TH2F *histdEdxVTotalRange = new TH2F("histdEdxVTotalRange", "histdEdxVTotalRange", 500, 0, 1030, 1600, 0, 4000);
-   TH2F *histESmallVTotalRange = new TH2F("histESmallVTotalRange", "histESmallVTotalRange", 500, 0, 1030, 1600, 0, 160000);
-   TH2F *histEBigVBigRange = new TH2F("histEBigVBigRange", "histEBigVBigRange", 500, 0, 1030, 1600, 0, 160000);
+   TH2F *histSiPIDTraceIntegralFronts = new TH2F("histSiPIDTraceIntegralFronts", "histSiPIDTraceIntegralFronts;E_{2}^{Front}[MeV];E_{1}^{Front}[MeV]", 5000, 0, 300, 5000, 0, 300);
+   TH2F *histSiPIDTraceIntegralBacks = new TH2F("histSiPIDTraceIntegralBacks", "histSiPIDTraceIntegralBacks;E_{2}^{Back}[MeV];E_{1}^{Back}[MeV]", 5000, 0,3000, 5000, 0, 300);
+   
+   TH2F *histSiPID_GAGGveto = new TH2F("histSiPID_GAGGveto", "histSiPID_GAGGveto;E_{2}^{Back}[MeV];E_{1}^{Back}[MeV]", 5000, 0, 300, 5000, 0, 250);
 
-   TH2F *histSiPIDTraceIntegral = new TH2F("histSiPIDTraceIntegral", "histSiPIDTraceIntegral", 4000, 0, 90000, 4000, 0, 140000);
-   TH2F *histSiPIDADCMax = new TH2F("histSiPIDADCMax", "histSiPIDADCMax", 4000, 0, 4000, 4000, 0, 4000);
-   TH2F *histSiPIDADCMax3He = new TH2F("histSiPIDADCMax3He", "histSiPIDADCMax3He", 4000, 0, 4000, 4000, 0, 4000);
-   TH2F *histSiPIDADCMax3HeGaggBe = new TH2F("histSiPIDADCMax3HeGaggBe", "histSiPIDADCMax3HeGaggBe", 4000, 0, 4000, 4000, 0, 4000);
-   TH2F *histSiPIDADCMax2H = new TH2F("histSiPIDADCMax2H", "histSiPIDADCMax2H", 1000, 0, 4000, 1000, 0, 4000);
-   TH2F *histSiPIDADCMax1H = new TH2F("histSiPIDADCMax1H", "histSiPIDADCMax1H", 1000, 0, 4000, 1000, 0, 4000);
-   TH2F *histSiPIDADCMaxGaggBe = new TH2F("histSiPIDADCMaxGaggBe", "histSiPIDADCMaxGaggBe", 1000, 0, 4000, 1000, 0, 4000);
-   TH2F *histSiPIDADCMaxGaggLi = new TH2F("histSiPIDADCMaxGaggLi", "histSiPIDADCMaxGaggLi", 1000, 0, 4000, 1000, 0, 4000);
+   TH2F *histSi1PIDFrontvBack = new TH2F("histSi1PIDFrontvBack", "histSi1PIDFrontvBack;E_{1}^{Front}[MeV];E_{1}^{Back}[MeV]", 5000, 0, 400, 5000, 0, 400);
+   TH2F *histSi2PIDFrontvBack = new TH2F("histSi2PIDFrontvBack", "histSi2PIDFrontvBack;E_{2}^{Front}[MeV];E_{2}^{Back}[MeV]", 5000, 0, 400, 5000, 0, 400);
 
-   TH1F *histSi1FrontE = new TH1F("histSi1FrontE", "histSi1Front;E1_Front;Counts", 5000, 0, 50000);
-   TH1F *histSi1BackE = new TH1F("histSi1BackE", "histSi1Back;E1_Back;Counts", 5000, 0, 25000);
-   TH1F *histSi2FrontE = new TH1F("histSi2FrontE", "histSi2FrontE;E2_Front;Counts", 5000, 0, 50000);
-   TH1F *histSi2BackE = new TH1F("histSi2BackE", "histSi2BackE;E2_Back;Counts", 5000, 0, 25000);
-   TH2F *histSi1V2FrontE = new TH2F("histSi1V2FrontE", "histSi1V2FrontE;E1_Front;E2_Front", 5000, 0, 25000, 5000, 0, 25000);
+   TH1F *histSi1FrontE = new TH1F("histSi1FrontE", "histSi1Front;E1_Front;Counts", 5000, 0, 300);
+   TH1F *histSi1BackE = new TH1F("histSi1BackE", "histSi1Back;E1_Back;Counts", 5000, 0, 300);
+   TH1F *histSi2FrontE = new TH1F("histSi2FrontE", "histSi2FrontE;E2_Front;Counts", 5000, 0, 300);
+   TH1F *histSi2BackE = new TH1F("histSi2BackE", "histSi2BackE;E2_Back;Counts", 5000, 0, 300);
+   TH2F *histSi1V2FrontE = new TH2F("histSi1V2FrontE", "histSi1V2FrontE;E1_Front;E2_Front", 5000, 0, 300, 5000, 0, 300);
 
    TH1F *histSiMultiplicityFront1 = new TH1F("histSiMultiplicityFront1", "histSiMultiplicityFront1", 10, 0, 10);
    TH1F *histSiMultiplicityFront2 = new TH1F("histSiMultiplicityFront2", "histSiMultiplicityFront2", 10, 0, 10);
@@ -204,18 +187,56 @@ void kine()
    TH2F *histGaggPIDADCMaxSiB = new TH2F("histGaggPIDADCMaxSiB", "histGaggPIDADCMaxSiB", 5000, 0, 10000, 4000, 0, 4000);
 
    TH1F *histSiStrip = new TH1F("histSiStrip", "histSiStrip;Strip;Counts", 550, 0, 550);
-   TH2F *histSiStripvE = new TH2F("histSiStripvE", "histSiStripvE;Strip;E", 550, 0, 550, 5000, 0, 5000);
+   TH2F *histSiStripvE = new TH2F("histSiStripvE", "histSiStripvE;Strip;E", 550, 0, 550, 5000, 0, 3500);
    TH2F *histSiStripvMaxADC = new TH2F("histSiStripvMaxADC", "histSiStripvMaxADC;Strip;ADC", 550, 0, 550, 5000, 0, 5000);
    TH2F *Si1Position = new TH2F("Si1Position", "Si1Position; X (strip); Y (strip)", 128, 0, 128, 128, 0, 128);
+   TH2F *Si2Position = new TH2F("Si2Position", "Si2Position; X (strip); Y (strip)", 128, 0, 128, 128, 0, 128);
+   
+   TH2F *HitPattern1 = new TH2F("HitPattern1", "HitPattern1; X (strip); Y (strip)", 128, 0, 128, 128, 0, 128);
+   TH2F *HitPattern2 = new TH2F("HitPattern2", "HitPattern2; X (strip); Y (strip)", 128, 0, 128, 128, 0, 128);
 
-   // All events.
+   TH1F *histSmallPad = new TH1F("histSmallPad", "histSmallPad;Hit Charge;Counts", 4100, 0, 4100);
+   TH1F *histBigPad = new TH1F("histBigPad", "histBigPad;Hit Charge;Counts", 600, 0, 600);
 
-    /*std::vector runNums = {3001,3002,3003,3004,3005,3006,3007,3008,3009,3010,3011,3012,3013,3014,3015,
-			  3016,3017,3018,3019,3020,3021,3022,3023,3024,3025,3026,3027,3028,3029,3030,
-			  3031,3032,3033,3034,3035,3036,3037,3038,3039,3040,3041,3042,3043,3044,3045,
-			  3046,3047,3048,3049,3050,3051,3052,3053,3054,3055,3056,3057,3058,3059,3060,
-			  3061,3062,3063,3064};
-*/
+   TH1F *histTrackMultiplicity = new TH1F("histTrackMultiplicity", "Track Multiplicty;Tracks Detected;Counts", 11, -0.5, 10.5);
+
+   TH1F *histVertexCal = new TH1F("histVertexCal", "Reconstructed Vertex;Vertex Z;Counts", 1000, 0, 1000);
+
+   //TH2F *GAGG_IDvE = new TH2F("GAGG_IDvE", "GAGG Energy vs ID;Energy;ID", 8000, 0, 500, 26, 0, 26);
+   TH2F *GAGG_IDvE = new TH2F("GAGG_IDvE", "GAGG ID vs Energy;ID;Energy", 26, 0, 26, 300, 0, 500);
+   //TH2F *GAGG_IDvE = new TH2F("GAGG_IDvE", "GAGG ID vs Energy;ID;Energy", 26, 0, 26, 8000, 0, 40000);
+
+   //TH3F *oddpos = new TH3F("oddpos", "3D Plot", 100, -150, 150, 100, -150, 150, 100, 0, 1000); 
+
+   TH1F *histSiTDiff = new TH1F("histSiTDiff", "Si1v2 TDiff;Time Difference;Counts", 1024, -512, 512);
+   TH1F *histSi_delX = new TH1F("histSi_delX", "Si_{1}-S_{2} x;#Delta x;Counts", 5, 0, 5);
+   TH1F *histSi_delY = new TH1F("histSi_delY", "Si_{1}-S_{2} y;#Delta y;Counts", 5, 0, 5);
+   TH2F *histSiIDTDiff_1 = new TH2F("histSiIDTDiff_1", "Si1 ID TDiff;Time Difference;Strip ID", 1024, -512, 512, 128, 0, 128);
+   TH2F *histSiIDTDiff_2 = new TH2F("histSiIDTDiff_2", "Si2 ID TDiff;Time Difference;Strip ID", 1024, -512, 512, 128, 0, 128);
+   TH2F *histSiGAGGIDTDiff = new TH2F("histSiGAGGIDTDiff", "Si1 vs GAGG ID TDiff;Time Difference;GAGG ID", 1024, -512, 512, 24, 0, 24);
+   TH2F *histSiGAGGIDTDiff_GATE = new TH2F("histSiGAGGIDTDiff_GATE", "Si1 vs GAGG ID TDiff GATE;Time Difference;GAGG ID", 1024, -512, 512, 24, 0, 24);
+   
+   TH2F *histPIDSivGAGG_FULL = new TH2F("histPIDSivGAGG_FULL","histPIDSivGAGG_FULL;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 200, 0, 300, 4000, 0, 400);
+   TH2F *histPIDSivGAGG = new TH2F("histPIDSivGAGG","histPIDSivGAGG;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 200, 0, 300, 4000, 0, 400);
+   TH2F *histPIDSivGAGG_reject = new TH2F("histPIDSivGAGG_reject","histPIDSivGAGG_reject;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 200, 0, 400, 2000, 0, 350);
+   TH2F *histPIDSivGAGG_timegate = new TH2F("histPIDSivGAGG_timegate","histPIDSivGAGG_timegate;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 400, 0, 70, 2000, 0, 80);
+   //TH2F *histPIDSivGAGG_timegate = new TH2F("histPIDSivGAGG_timegate","histPIDSivGAGG_timegate;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 400, 0, 400, 2000, 0, 350);
+   TH2F *histPIDSivGAGG_1906 = new TH2F("histPIDSivGAGG_1906","histPIDSivGAGG_1906;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 400, 0, 400, 2000, 0, 350);
+   TH2F *histPIDSivGAGG_1905 = new TH2F("histPIDSivGAGG_1905","histPIDSivGAGG_1905;E_{GAGG}[MeV];E_{1}^{Back}+E_{2}^{Back}[MeV]", 400, 0, 400, 2000, 0, 350);
+   TH1F *histGMULT = new TH1F("histGMULT", "histGMULT", 11,-0.5, 10.5);
+
+   //Kinematic plots
+   TH1F *histTrackTheta = new TH1F("histTrackTheta", "histTrackTheta", 180, 0, 180);
+   TH2F *histEstimatedKinEVThetaLABTotal = new TH2F("histEstimatedKinEVThetaLABTotal", "histEstimatedKinEVThetaLABTotal", 360, 0, 180, 500, 0, 20);
+   TH2F *histdEdxVTotalRange = new TH2F("histdEdxVTotalRange", "histdEdxVTotalRange", 500, 0, 400, 2000, 0, 3000);
+
+   /*TH2F *Si1PosGAGG[40];
+   TH2F *Si2PosGAGG[40];
+   for (int i=0; i<40; ++i) {
+	   Si1PosGAGG[i] = new TH2F(Form("Si1PosGAGG%i", i), "Si1 Position;X(strip);Y(strip)", 128, 0, 128, 128, 0, 128);
+	   Si2PosGAGG[i] = new TH2F(Form("Si2PosGAGG%i", i), "Si2 Position;X(strip);Y(strip)", 128, 0, 128, 128, 0, 128);
+   }*/
+
     //Turning on Calibration Mode
     bool calibrationMode = false;
     if (runNums[0] > 5000) {
@@ -224,8 +245,18 @@ void kine()
     }
 
    for (int runNum: runNums) {
+      if (runNum == 3012) { //junk run 
+	      continue;
+      }
+      if (runNum == 3095) { //junk run 
+	      continue;
+      }
+      if (runNum >= 3096 && runNum <= 3108) {
+	      std::cout << "Beam tuning run! Run Number: " << runNum << std::endl;
+	      continue;
+      }
       // Open the digitalization file and get the TTree.
-      TString unpackFileName = TString::Format("/home/astinson/e535rawdata/UnpackerTestOutput/run_%04d.root", runNum);
+      TString unpackFileName = TString::Format("/home/astinson/e535rawdata/UnpackerTestOutput/run_%04d_FULL_CAL.root", runNum);
       TFile *unpackFile = new TFile(unpackFileName, "READ");
       TTree *unpackTree = (TTree *)unpackFile->Get("cbmsim");
       int nUnpackEvents = unpackTree->GetEntries();
@@ -238,29 +269,10 @@ void kine()
       TTreeReaderValue<TClonesArray> gaggArray(unpackReader, "AtGaggEvent");
       TTreeReaderValue<TClonesArray> patternArray(unpackReader, "AtPatternEvent");
 
-      // Open the GAGG file of this run.
-      /*TString gaggFileName = TString::Format("/data/sustech/user/public/frib/frib-decode/data/hit%04d.root", runNum);
-      TFile *gaggFile = new TFile(gaggFileName, "READ");
-      TTree *gaggTree = (TTree *)gaggFile->Get("tree");
-      int nGaggEvents = gaggTree->GetEntries();
-      std::cout << " Number of unpacked GAGG events in run " << runNum << ": " << nGaggEvents << std::endl;
-
-      Int_t idGagg1[25];
-      Int_t idGagg2[16];
-      Double_t gaggADCMax1[25];
-      Double_t gaggADCMax2[16];
-
-      gaggTree->SetBranchAddress("id_g1", idGagg1);
-      gaggTree->SetBranchAddress("id_g2", idGagg2);
-      gaggTree->SetBranchAddress("ADC_max_g1", gaggADCMax1);
-      gaggTree->SetBranchAddress("ADC_max_g2", gaggADCMax2);*/
-
       // Loop over events.
       for (int i = 0; i < nUnpackEvents; i++) {
       //for (int i = 0; i < nGaggEvents; i++) {
          unpackReader.Next();
-         //gaggTree->GetEntry(i);
-
          // Check the Si data first.
          AtSiEvent *siEvent = (AtSiEvent *)siArray->At(0);
 
@@ -281,84 +293,96 @@ void kine()
 	 Float_t front1E = siEvent->GetEnergyFront1();
 	 Float_t back1E = siEvent->GetEnergyBack1();
 
+         //std::cout << " front1E: " << front1E <<std::endl; //calibration debug
+         //std::cout << " back1E: " << back1E <<std::endl;
+
+
+	 Int_t strip2X = siEvent->GetXStrip2();
+	 Int_t strip2Y = siEvent->GetYStrip2();
+	 Float_t front2E = siEvent->GetEnergyFront2();
+	 Float_t back2E = siEvent->GetEnergyBack2();
+
+	 Int_t time1 = siEvent->GetTimeFront1();
+	 Int_t time2 = siEvent->GetTimeFront2();
+
+	 double SiSum = 0;
+
+	 bool beamSiGate = false;
+	 bool goodSiPID = false;
+	 
 	 if (front1E > 20 && back1E > 20) {
 		 Si1Position->Fill(strip1X, strip1Y);
 	 }
-	 if (calibrationMode) { //To-Do: likely will need to change this depending on the calibration file being used.
-		 if (multiplicityFront1 != 1 || multiplicityBack1 != 1) continue;
+
+	 if (front2E > 20 && back2E > 20) {
+		 Si2Position->Fill(strip2X, strip2Y);
+	 }
+
+	 if (front1E > 1 && back1E > 1 && front2E > 1 && back2E > 1) {
+		 int tdiff = time1 - time2;
+		 //HitPattern1->Fill(strip1X, strip1Y);
+		 //HitPattern2->Fill(strip2X, strip2Y);
+		 //histSiPIDTraceIntegralFronts->Fill(front2E, front1E);
+		 histSi1PIDFrontvBack->Fill(front1E, back1E);
+		 histSi2PIDFrontvBack->Fill(front2E, back2E);
+		 histSiIDTDiff_1->Fill(time1, strip1Y);
+		 histSiIDTDiff_2->Fill(time2, strip2Y);
+		 histSi1BackE->Fill(back1E);
+		 histSi2BackE->Fill(back2E);
+		 histSi1FrontE->Fill(front1E);
+		 histSi2FrontE->Fill(front2E);
+		 if (abs(tdiff)<10){
+			 SiSum = back1E + back2E;
+		 	 histSiPIDTraceIntegralFronts->Fill(front2E, front1E);
+		 	 histSiPIDTraceIntegralBacks->Fill(back2E, back1E);
+			 goodSiPID = true;
+		 }
+		 histSi_delX->Fill(abs(strip1X-strip2X));
+		 histSi_delY->Fill(abs(strip1Y-strip2Y));
+		 /*if (cutSi13B->IsInside(back2E, back1E)) {
+			beamSiGate = true;
+		 	histSiPIDTraceIntegralBacks->Fill(back2E, back1E);
+		 	histSiPIDTraceIntegralBacksCAL->Fill(back2E, back1E);
+		 }*/
+		 //SiSum = back1E + back2E; //AMBER TIME
+	 }
+
+	 histSiTDiff->Fill(time1-time2);
+
+	 if (calibrationMode) { //these are specific to the calibration files
+		 if (runNum > 5155) { //DSSD1
+			 if (multiplicityFront1 != 1 || multiplicityBack1 != 1) continue;
+		 } 
+		 if (runNum >= 5150 && runNum <= 5154) { //DSSD2
+			 if (multiplicityFront2 != 1 || multiplicityBack2 != 1) continue;
+		 }
 	 }
 	 else {
-		 if ((multiplicityFront1 != 1 && multiplicityBack1 != 1) || (multiplicityFront2 != 1 && multiplicityBack2 != 1)) continue;
+		 if ((multiplicityFront1 != 1 || multiplicityBack1 != 1) || (multiplicityFront2 != 1 || multiplicityBack2 != 1)) continue;
 	 }
 
-	 for (int j=0; j<4; ++j) {
-	 	Int_t strip = siEvent->GetStripFront1(j);
-	 	if (strip < 0) { continue; }
-		Double_t maxADCFront1 = siEvent->GetADCMaxFront1(j);
-         	Double_t EFront1 = siEvent->GetEFront1(j);
-	 	histSi1FrontE->Fill(EFront1);
-		histSiStrip->Fill(strip);
-		histSiStripvE->Fill(strip, EFront1);
-		histSiStripvMaxADC->Fill(strip, maxADCFront1);
+	 /*for (int j=0; j<4; ++j) {
+		 Int_t stripSi1 = siEvent->GetStripFront1(j);
+		 Int_t stripSi2 = siEvent->GetStripFront2(j);
+		 if (stripSi1 >= 0) {
+			 histSiIDTDiff_1->Fill(time1, stripSi1);
+		 }
+		 if (stripSi2 >= 0) {
+			 histSiIDTDiff_2->Fill(time2, stripSi2);
+		 }
+
+	 }*/
+
+	 if (calibrationMode) { //these are specific to the calibration files
+		 if (runNum > 5155) { //DSSD1
+			 if (multiplicityFront1 != 1 || multiplicityBack1 != 1) continue;
+		 } 
+		 if (runNum >= 5150 && runNum <= 5154) { //DSSD2
+			 if (multiplicityFront2 != 1 || multiplicityBack2 != 1) continue;
+		 }
 	 }
 
-	 for (int j=0; j<4; ++j) {
-	 	Int_t strip = siEvent->GetStripFront2(j);
-	 	if (strip < 0) { continue; }
-		Double_t maxADCFront2 = siEvent->GetADCMaxFront2(j);
-		Double_t EFront2 = siEvent->GetEFront2(j);
-		histSi2FrontE->Fill(EFront2);
-		histSiStrip->Fill(strip);
-		histSiStripvE->Fill(strip, EFront2);
-		histSiStripvMaxADC->Fill(strip, maxADCFront2);
-	 }
-
-	 for (int j=0; j<4; ++j) {
-	 	Int_t strip = siEvent->GetStripBack1(j);
-	 	if (strip < 0) { continue; }
-		Double_t maxADCBack1 = siEvent->GetADCMaxBack1(j);
-		Double_t EBack1 = siEvent->GetEBack1(j);
-		histSi1BackE->Fill(EBack1);
-		histSiStrip->Fill(strip);
-		histSiStripvE->Fill(strip, EBack1);
-		histSiStripvMaxADC->Fill(strip, maxADCBack1);
-	 }
-
-	 for (int j=0; j<4; ++j) {
-	 	Int_t strip = siEvent->GetStripBack2(j);
-	 	if (strip < 0) { continue; }
-		Double_t maxADCBack2 = siEvent->GetADCMaxBack2(j);
-		Double_t EBack2 = siEvent->GetEBack2(j);
-		histSi2BackE->Fill(EBack2);
-		histSiStrip->Fill(strip);
-		histSiStripvE->Fill(strip, EBack2);
-		histSiStripvMaxADC->Fill(strip, maxADCBack2);
-	 }
-
-
-         //if (!cutSiN->IsInside(maxADCFront2, maxADCFront1)) continue;
-         //if (!cutSiC->IsInside(maxADCFront2, maxADCFront1)) continue;
-
-         // Check the GAGG data directly from the GAGG decoder.
-         /*Double_t totalMaxADCGagg1{};
-         for (int j = 0; j < 25; j++) {
-            if (idGagg1[j])
-               totalMaxADCGagg1 += gaggADCMax1[j];
-         }
-
-         Double_t totalMaxADCGagg2{};
-         for (int j = 0; j < 16; j++) {
-            if (idGagg1[j])
-               totalMaxADCGagg2 += gaggADCMax2[j];
-         }
-
-         Double_t totalMaxADCGagg = totalMaxADCGagg1 + totalMaxADCGagg2;
-         if (totalMaxADCGagg)
-            histGaggPIDADCMax->Fill(totalMaxADCGagg, maxADCFront2);
-
-         //if (!cutGaggC->IsInside(totalMaxADCGagg, maxADCFront2)) continue;*/
-
-         // Check the GAGG data
+         // Check the GAGG data next. For calibration need to add if statement to allow energies past gate
          AtGaggEvent *gaggEvent = (AtGaggEvent *)gaggArray->At(0);
 
          Int_t multiGagg1 = gaggEvent->GetMultiplicity1();
@@ -367,31 +391,91 @@ void kine()
          histGaggMultiplicity1->Fill(multiGagg1);
          histGaggMultiplicity2->Fill(multiGagg2);
 
-         //std::cout << " Multiplicity GAGG1: " << multiGagg1 <<std::endl;
-
          //if (multiGagg1 != 1) continue;
+	 int g_mult = 0;
+	 double GAGGSum = 0;
+	 int GAGGTime = -1;
+	 int GAGGID = -1;
+	 int GAGGX, GAGGY;
+	 bool CleanGAGG = false;
+
          Double_t maxADCGagg1, maxADCGagg2;
          Double_t gaggADC1{-1}, gaggADC2{-1};
          Double_t totalMaxADCGagg{};
-         for(int imul = 0; imul < multiGagg1; imul++) {
+
+	 //std::cout << "Using Gagg Multiplicity: " << multiGagg1 << std::endl;//testing multiplicity
+
+	 //std::cout << "GAGG event" << std::endl;
+         for (int imul = 0; imul < multiGagg1; imul++) {
+	    int ID = (int)gaggEvent->GetID1(imul);
             maxADCGagg1 = gaggEvent->GetADCMax1(imul);
+	    if (ID == 36) { ID = 24; } //crystal missing. Use crystal behind instead
+	    if (ID < 0 || ID > 24) { 
+		    continue; 
+	    }
+	    if (maxADCGagg1 < 40) {
+		    CleanGAGG = true;
+		    continue; 
+	    }
+	    GAGGID = ID;
+	    GAGGX = 4-GAGGID/5;
+	    GAGGY = 4-GAGGID%5;
+	    if (beamSiGate) {
+		    //GAGG_IDvE->Fill(gaggEvent->GetE1(imul), ID);
+		    GAGG_IDvE->Fill(ID, gaggEvent->GetE1(imul));
+	    }
+	    g_mult++;
+	    //std::cout << "g_mult = " << g_mult << std::endl; //testing multiplicity
+	    GAGGSum += gaggEvent->GetE1(imul);
+	    GAGGTime = gaggEvent->GetTS1(imul);
             gaggADC1 += maxADCGagg1;
             totalMaxADCGagg += maxADCGagg1;
-            //std::cout << " ADC entry = " << maxADCGagg1 << std::endl;
+            //std::cout << imul << "  " << ID << " ADC entry = " << maxADCGagg1 << std::endl;
          }
-	      for(int imul = 0; imul < multiGagg2; imul++) {
-            maxADCGagg2 = gaggEvent->GetADCMax2(imul);
-            gaggADC2 += maxADCGagg2;
-            totalMaxADCGagg += maxADCGagg2;
-         }
-         /*Double_t totalMaxADCGagg{};
-         if (gaggADC1 != -1)
-            totalMaxADCGagg += gaggADC1;
-         if (gaggADC2 != -1)
-            totalMaxADCGagg += gaggADC2;*/
+	 //std::cout << "g_mult = " << g_mult << std::endl;
+	 histGMULT->Fill(g_mult);
 
-	 //histGaggPIDADCMax->Fill(totalMaxADCGagg, maxADCFront2);
+	 if ((g_mult==0) && goodSiPID && CleanGAGG) {
+		 //if ((back2E > 700) || (back1E > 700)) {continue; }
+		 histSiPID_GAGGveto->Fill(back2E, back1E);
+		 HitPattern1->Fill(strip1X, strip1Y);
+		 HitPattern2->Fill(strip2X, strip2Y);
+	    	 //std::cout << "g_mult:" << g_mult << "; X strip: " << strip1X << "; Y strip: " << strip1Y << "; Energy (back 2): " << back2E << "; Energy (front 2): " << front2E << std::endl; //testing multiplicity
+	 }
 
+	 if ((g_mult==1) && goodSiPID) {
+		 int tdiff = time1 - GAGGTime;
+		 histSiGAGGIDTDiff->Fill(tdiff, GAGGID);
+		 histPIDSivGAGG->Fill(GAGGSum, SiSum);
+		 //bool pos_gate = true; //test
+		 bool pos_gate = false;
+		 if ((col_boundaries[GAGGX]-2) < strip1X && strip1X < (col_boundaries[GAGGX+1]+2)) {
+			if ((row_boundaries[GAGGY]-2) < strip1Y && strip1Y < (row_boundaries[GAGGY+1]+2)) {
+				pos_gate = true;
+			}
+		 }
+		 if (tdiff >= 25 && tdiff <= 50) {
+			 //Si1PosGAGG[GAGGID]->Fill(strip1X, strip1Y);
+			 //Si2PosGAGG[GAGGID]->Fill(strip2X, strip2Y);
+		 	 if (pos_gate) {
+		 		histSiGAGGIDTDiff_GATE->Fill(tdiff, GAGGID);
+			 	histPIDSivGAGG_timegate->Fill(GAGGSum, SiSum);
+				if (GAGGID < 16 && GAGGID !=6) {
+					histPIDSivGAGG_1906->Fill(GAGGSum, SiSum);
+				}
+				else if (GAGGID > 15) {
+					histPIDSivGAGG_1905->Fill(GAGGSum, SiSum);
+				}
+			 }
+			 //else {
+			 //	 histPIDSivGAGG_reject->Fill(GAGGSum, SiSum);
+			 //}
+		 }
+	 }
+	 else {
+	 	histPIDSivGAGG_reject->Fill(GAGGSum, SiSum);
+	 }
+	 histPIDSivGAGG_FULL->Fill(GAGGSum, SiSum); 
 
          // First, we obtain some rough kinematics just by using the AtPatternEvent.
          AtPatternEvent *patternEvent = (AtPatternEvent *)patternArray->At(0);
@@ -399,7 +483,8 @@ void kine()
 
          // We want to focus on events with 2 or less tracks for now.
          auto &tracks = patternEvent->GetTrackCand();
-         //if (tracks.size() > 4) continue;
+	 histTrackMultiplicity->Fill(tracks.size());
+	 //if (tracks.size() > 4) continue;
          if (tracks.size() > 2) continue;
          //if (tracks.size() > 1) continue;
 	 if (tracks.size()==2) nEventsWith2Tracks++;
@@ -407,182 +492,67 @@ void kine()
 	 double thetaLABArray[2] = {0.0,0.0};
 	 double estimatedKineEArray[2] = {0.0,0.0};
 	 bool isHe3Array[2] = {false,false};
-         // Iterate over AtTracks and extract their kinematics.
-         for (auto &track: tracks) {
-            bool isPunchThrough = punchThroughChecker.IsPunchThrough(&track);
-            if (isPunchThrough) continue;
+	 // Iterate over AtTracks and extract their kinematics.                                      
+	 for (auto &track: tracks) {                                                                    
+		 bool isPunchThrough = punchThroughChecker.IsPunchThrough(&track);
+		 if (isPunchThrough) continue;
+		 
+		 auto *pattern = track.GetPattern();
 
-            auto *pattern = track.GetPattern();
+		 auto firstPoint = track.GetFirstPoint();
+		 auto lastPoint = track.GetLastPoint();
+		 //cut penetrate particles
+		 //if (lastPoint.Z()>900) continue;
+		 //std::cout<<lastPoint.Z()<<std::endl;
+		 double roughRangeEstimation = pattern->DistanceAlongPattern(lastPoint, firstPoint);
+		 double trackThetaLAB = track.GetGeoTheta() * 180 / TMath::Pi();
+            	 double trackPhi = track.GetGeoPhi() * 180 / TMath::Pi();
 
-            auto firstPoint = track.GetFirstPoint();
-            auto lastPoint = track.GetLastPoint();
-	    //cut penetrate particles
-	    //if (lastPoint.Z()>900) continue;
-	    //std::cout<<lastPoint.Z()<<std::endl;
-            double roughRangeEstimation = pattern->DistanceAlongPattern(lastPoint, firstPoint);
+		 histTrackTheta->Fill(trackThetaLAB);
 
-            double trackThetaLAB = track.GetGeoTheta() * 180 / TMath::Pi();
-            double trackPhi = track.GetGeoPhi() * 180 / TMath::Pi();
+            	 double smallPadCharge{};
+            	 double bigPadCharge{};
+            	 auto braggCurvePairs = track.GetBraggCurveValues();
+            	 auto &hits = track.GetHitArray();
+            	 double rangeInSmallPads{};
+		 for (auto &hit:hits) {
+			 int padNum = hit->GetPadNum();
+			 int sizeID = map->GetPadSize(padNum);
+			 if (sizeID == 1) {
+				 bigPadCharge += hit->GetCharge();
+				 continue;
+			 }
+			 smallPadCharge += hit->GetCharge();
+			 double currentRangeInSmallPads = pattern->DistanceAlongPattern(hit->GetPosition(), firstPoint);
+			 auto pos = hit->GetPosition();
+			 if (currentRangeInSmallPads > rangeInSmallPads)
+				 rangeInSmallPads = currentRangeInSmallPads;
+		 }
+		 double dEdx = smallPadCharge / rangeInSmallPads;
 
-            double smallPadCharge{};
-            double bigPadCharge{};
-            auto braggCurvePairs = track.GetBraggCurveValues();
-            auto &hits = track.GetHitArray();
-            double rangeInSmallPads{};
-	         for (auto &hit: hits) {
-               int padNum = hit->GetPadNum();
-               int sizeID = map->GetPadSize(padNum);
-               if (sizeID == 1) {
-                  bigPadCharge += hit->GetCharge();
-                  continue;
-               }
-               smallPadCharge += hit->GetCharge();
-               double currentRangeInSmallPads = pattern->DistanceAlongPattern(hit->GetPosition(), firstPoint);
-               if (currentRangeInSmallPads > rangeInSmallPads)
-                  rangeInSmallPads = currentRangeInSmallPads;
-            }
-            double dEdx = smallPadCharge / rangeInSmallPads;
+		 double rangeInBigPads = roughRangeEstimation - rangeInSmallPads;
+		 bool reachedBigPads = true;
+		 if (rangeInBigPads / roughRangeEstimation < 0.05)
+			 reachedBigPads = false;
 
-            double rangeInBigPads = roughRangeEstimation - rangeInSmallPads;
-            bool reachedBigPads = true;
-            if (rangeInBigPads / roughRangeEstimation < 0.05)
-               reachedBigPads = false;
-
-            double estimatedKinE{0.1};
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx)) {
-               while (eLossModelC3D8_3He->GetRange(estimatedKinE) < roughRangeEstimation)
-                  estimatedKinE += 0.01;
-	    } else if (cutPIDdeuteron->IsInside(roughRangeEstimation, dEdx)) {
-               while (eLossModelC3D8_d->GetRange(estimatedKinE) < roughRangeEstimation)
-                  estimatedKinE += 0.01;
-	    } else if (cutPIDproton->IsInside(roughRangeEstimation, dEdx)) {
-               while (eLossModelC3D8_p->GetRange(estimatedKinE) < roughRangeEstimation)
-                  estimatedKinE += 0.01;
-            } else {
-	      estimatedKinE = 0;
-            }
-
-            histRangeVThetaLAB->Fill(trackThetaLAB, roughRangeEstimation);
-            histdEdxVTotalRange->Fill(roughRangeEstimation, dEdx);
-            histEstimatedKinEVThetaLABTotal->Fill(trackThetaLAB, estimatedKinE);
-
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx))
-               histTrackThetaLABRange3He->Fill(roughRangeEstimation, trackThetaLAB);
-/*
-            if ((cutPID3He->IsInside(roughRangeEstimation, dEdx))
-		&& cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2)
-		&& cutSiBe->IsInside(maxADCFront2, maxADCFront1)){
-	      histTrackThetaLABRange3HeSiGaggBe->Fill(roughRangeEstimation, trackThetaLAB);};
-*/
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx))
-               histEstimatedKinEVThetaLAB3He->Fill(trackThetaLAB, estimatedKinE);
-/*
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx)
-		&& cutSiBe->IsInside(maxADCFront2, maxADCFront1)){
-	      histEstimatedKinEVThetaLAB3HeSiBe->Fill(trackThetaLAB, estimatedKinE);};
-
-            if (cutSiBe->IsInside(maxADCFront2, maxADCFront1))
-	      histEstimatedKinEVThetaLABSiBe->Fill(trackThetaLAB, estimatedKinE);
-
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx)
-		&& cutSiBe->IsInside(maxADCFront2, maxADCFront1)
-		&& cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2)){
-	      histEstimatedKinEVThetaLAB3HeSiGaggBe->Fill(trackThetaLAB, estimatedKinE);
-	      if(tracks.size()==1){
-		histEstimatedKinEVThetaLAB3HeSiGaggBetrack1->Fill(trackThetaLAB, estimatedKinE);
-	      }
-	      if(tracks.size()==2){
-		histEstimatedKinEVThetaLAB3HeSiGaggBetrack2->Fill(trackThetaLAB, estimatedKinE);
-	      }
-	    };
-
-            if (cutSiBe->IsInside(maxADCFront2, maxADCFront1)
-		&& cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2)){
-	      histEstimatedKinEVThetaLABSiGaggBe->Fill(trackThetaLAB, estimatedKinE);};
-*/
-            if (cutPIDdeuteron->IsInside(roughRangeEstimation, dEdx))
-               histEstimatedKinEVThetaLAB2H->Fill(trackThetaLAB, estimatedKinE);
-
-            if (cutPIDproton->IsInside(roughRangeEstimation, dEdx))
-               histEstimatedKinEVThetaLAB1H->Fill(trackThetaLAB, estimatedKinE);
-/*	    
-	    if (cutSiB->IsInside(maxADCFront2, maxADCFront1))
-	      histEstimatedKinEVThetaLABSiB->Fill(trackThetaLAB, estimatedKinE);
-
-	    if (cutSi13B->IsInside(maxADCFront2, maxADCFront1))
-	      histEstimatedKinEVThetaLABSi13B->Fill(trackThetaLAB, estimatedKinE);
-
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx))
-	      histSiPIDADCMax3He->Fill(maxADCFront2, maxADCFront1);
-
-            if (cutPIDdeuteron->IsInside(roughRangeEstimation, dEdx))
-	      histSiPIDADCMax2H->Fill(maxADCFront2, maxADCFront1);
-
-	    if (cutPIDproton->IsInside(roughRangeEstimation, dEdx))
-	      histSiPIDADCMax1H->Fill(maxADCFront2, maxADCFront1);
-
-	    if (cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2))
-	      histSiPIDADCMaxGaggBe->Fill(maxADCFront2, maxADCFront1);
-
-            if ((cutPID3He->IsInside(roughRangeEstimation, dEdx))
-		&& (cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2))){
-	      histSiPIDADCMax3HeGaggBe->Fill(maxADCFront2, maxADCFront1);};
-
-	    if (cutGaggLi->IsInside(totalMaxADCGagg, maxADCFront2))
-	      histSiPIDADCMaxGaggLi->Fill(maxADCFront2, maxADCFront1);
-
-	    if (cutSiC->IsInside(maxADCFront2, maxADCFront1))
-	      histEstimatedKinEVThetaLABSiC->Fill(trackThetaLAB, estimatedKinE);
-
-            if (cutPID3He->IsInside(roughRangeEstimation, dEdx)
-		&& cutSiB->IsInside(maxADCFront2, maxADCFront1)){
-	      histGaggPIDADCMax3HeSiB->Fill(totalMaxADCGagg, maxADCFront2);};
-
-	    if (cutSiB->IsInside(maxADCFront2, maxADCFront1))
-	      histGaggPIDADCMaxSiB->Fill(totalMaxADCGagg, maxADCFront2);
-*/
-            if (!reachedBigPads)
-               histESmallVTotalRange->Fill(roughRangeEstimation, smallPadCharge);
-            else
-               histEBigVBigRange->Fill(rangeInBigPads, bigPadCharge);
-
-	    if(tracks.size()==2 && trackIndex < 2){
-	      thetaLABArray[trackIndex] = trackThetaLAB;
-	      estimatedKineEArray[trackIndex] = estimatedKinE;
-	      isHe3Array[trackIndex] = cutPID3He->IsInside(roughRangeEstimation, dEdx);
-	      trackIndex++;
-	    }
-         }
-         if(tracks.size()==2 && trackIndex==2){
-	   histThetaLABThetaLAB->Fill(thetaLABArray[0], thetaLABArray[1]);
-	   if(thetaLABArray[0]<=thetaLABArray[1]){
-	     if(thetaLABArray[0]<15 && thetaLABArray[1]<50){
-	       histThetaLABThetaLABKine->Fill(thetaLABArray[1], thetaLABArray[0]);
-	       histEstimatedKinEVThetaLABkinett->Fill(thetaLABArray[0],estimatedKineEArray[0]);
-	     }
-	   }
-	   else if(thetaLABArray[0]>thetaLABArray[1]){
-	     if(thetaLABArray[0]<50 && thetaLABArray[1]<15){
-	       histThetaLABThetaLABKine->Fill(thetaLABArray[0], thetaLABArray[1]);
-	       histEstimatedKinEVThetaLABkinett->Fill(thetaLABArray[1],estimatedKineEArray[1]);
-	     }
-	   }
-	   //bool passSiBe = cutSiBe->IsInside(maxADCFront2, maxADCFront1);
-	   //bool passGaggBe = cutGaggBe->IsInside(totalMaxADCGagg, maxADCFront2);
-	   /*if(passSiBe && passGaggBe){
-	     if(isHe3Array[0] && !isHe3Array[1]){
-               histThetaLABThetaLAB3HeSiGaggBe->Fill(thetaLABArray[0], thetaLABArray[1]);
-	       nEventsWith3He++ ;
-	     }
-	     else if(!isHe3Array[0] && isHe3Array[1]){
-               histThetaLABThetaLAB3HeSiGaggBe->Fill(thetaLABArray[1], thetaLABArray[0]);
-	       nEventsWith3He++;
-	     }
-	   }*/
-         }
+		 double estimatedKinE{0.1};
+	 
+		 if (cutPID3He->IsInside(roughRangeEstimation, dEdx)) {
+			 while (eLossModelC3D8_3He->GetRange(estimatedKinE) < roughRangeEstimation)
+				 estimatedKinE += 0.01;
+		 } else if (cutPIDdeuteron->IsInside(roughRangeEstimation, dEdx)) {
+			 while (eLossModelC3D8_d->GetRange(estimatedKinE) < roughRangeEstimation)
+				 estimatedKinE += 0.01;
+		 } else if (cutPIDproton->IsInside(roughRangeEstimation, dEdx)) {
+			 while (eLossModelC3D8_p->GetRange(estimatedKinE) < roughRangeEstimation)
+				 estimatedKinE += 0.01;
+		 } else {
+			 estimatedKinE = 0;
+		 }
+		 histEstimatedKinEVThetaLABTotal->Fill(trackThetaLAB, estimatedKinE);
+		 histdEdxVTotalRange->Fill(roughRangeEstimation, dEdx);
+      	}
       }
-      //      std::cout << "Number of 2 tracks events in run" << runNum << ":" << nEventsWith2Tracks << std::endl;
-      //      std::cout << "Number of events with 3He in run" << runNum << ":" << nEventsWith3He << std::endl;
       // Close files.
       unpackFile->Close();
       //gaggFile->Close();
@@ -598,278 +568,7 @@ void kine()
    TGraph *kine_d3He_tt = ReadKinematics("./kineFiles/13B_d3He_tt.txt");
    TGraph *kine_12C12C = ReadKinematics("./kineFiles/17N_12C12C_gs.txt");
 
-   /*
-   // Draw histograms in TCanvas.
-   TCanvas *c = new TCanvas();
-   histRangeVThetaLAB->Draw("zcol");
-   histRangeVThetaLAB->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histRangeVThetaLAB->GetYaxis()->SetTitle("roughRange [mm]");
    
-   TCanvas *c1_3He = new TCanvas();
-   histTrackThetaLABRange3He->Draw("zcol");
-   histTrackThetaLABRange3He->GetXaxis()->SetTitle("roughRange [mm]");
-   histTrackThetaLABRange3He->GetYaxis()->SetTitle("#theta_{LAB} [deg]");
-   
-   TCanvas *c1_3HeSiGaggBe = new TCanvas();
-   histTrackThetaLABRange3HeSiGaggBe->Draw("zcol");
-   histTrackThetaLABRange3HeSiGaggBe->GetXaxis()->SetTitle("roughRange [mm]");
-   histTrackThetaLABRange3HeSiGaggBe->GetYaxis()->SetTitle("#theta_{LAB} [deg]");
-
-   TCanvas *c2 = new TCanvas();
-   histEstimatedKinEVThetaLABTotal->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   histEstimatedKinEVThetaLABTotal->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABTotal->GetYaxis()->SetTitle("roughKinE [MeV]");
-   
-   TCanvas *c3 = new TCanvas();
-   histEstimatedKinEVThetaLAB3He->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   //   kinecurve_3HeGS->Draw("C same");
-   //   ang_lab_cm_3HeGS->Draw("P same");
-   //   legend->Draw();
-   histEstimatedKinEVThetaLAB3He->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB3He->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_3HeSiBe = new TCanvas();
-   histEstimatedKinEVThetaLAB3HeSiBe->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   //   kinecurve_3HeGS->Draw("C same");
-   //   ang_lab_cm_3HeGS->Draw("P same");
-   //   legend->Draw();
-   histEstimatedKinEVThetaLAB3HeSiBe->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB3HeSiBe->GetYaxis()->SetTitle("roughKinE [MeV]");
-   
-   TCanvas *c3_3HeSiGaggBe = new TCanvas();
-   histEstimatedKinEVThetaLAB3HeSiGaggBe->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   //   kinecurve_3HeGS->Draw("C same");
-   //   ang_lab_cm_3HeGS->Draw("P same");
-   //   legend->Draw();   
-   histEstimatedKinEVThetaLAB3HeSiGaggBe->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB3HeSiGaggBe->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_3HeSiGaggBetrack1 = new TCanvas();
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack1->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   //   kinecurve_3HeGS->Draw("C same");
-   //   ang_lab_cm_3HeGS->Draw("P same");
-   //   legend->Draw();   
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack1->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack1->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_3HeSiGaggBetrack2 = new TCanvas();
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack2->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   //   kinecurve_3HeGS->Draw("C same");
-   //   ang_lab_cm_3HeGS->Draw("P same");
-   //   legend->Draw();   
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack2->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB3HeSiGaggBetrack2->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_kinett = new TCanvas();
-   histEstimatedKinEVThetaLABkinett->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   histEstimatedKinEVThetaLABkinett->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABkinett->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_tt = new TCanvas();
-   histThetaLABThetaLAB->Draw("zcol");
-   kine_d3He_tt->Draw("same");
-   histThetaLABThetaLAB->GetXaxis()->SetTitle("track1_#theta_{LAB} [deg]");
-   histThetaLABThetaLAB->GetYaxis()->SetTitle("track2_#theta_{LAB} [deg]");
-
-   TCanvas *c3_tt_kine = new TCanvas();
-   histThetaLABThetaLABKine->Draw("zcol");
-   kine_d3He_tt->Draw("same");
-   histThetaLABThetaLABKine->GetXaxis()->SetTitle("track1_#theta_{LAB} [deg]");
-   histThetaLABThetaLABKine->GetYaxis()->SetTitle("track2_#theta_{LAB} [deg]");
-
-   TCanvas *c3_tt_3HeSiGaggBe = new TCanvas();
-   histThetaLABThetaLAB3HeSiGaggBe->Draw("zcol");
-   histThetaLABThetaLAB3HeSiGaggBe->GetXaxis()->SetTitle("track1_#theta_{LAB} [deg]");
-   histThetaLABThetaLAB3HeSiGaggBe->GetYaxis()->SetTitle("track2_#theta_{LAB} [deg]");
-   
-   TCanvas *c3_2H = new TCanvas();
-   histEstimatedKinEVThetaLAB2H->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   histEstimatedKinEVThetaLAB2H->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB2H->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_1H = new TCanvas();
-   histEstimatedKinEVThetaLAB1H->Draw("zcol");
-   kine_dd->Draw("same");
-   kine_d3He->Draw("same");
-   kine_12C12C->Draw("same");
-   histEstimatedKinEVThetaLAB1H->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLAB1H->GetYaxis()->SetTitle("roughKinE [MeV]");
-   
-   TCanvas *c3_SiB = new TCanvas();
-   histEstimatedKinEVThetaLABSiB->Draw("zcol");
-   kine_dd->Draw("same");
-   kine_d3He->Draw("same");
-   kine_12C12C->Draw("same");
-   histEstimatedKinEVThetaLABSiB->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABSiB->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_SiC = new TCanvas();
-   histEstimatedKinEVThetaLABSiC->Draw("zcol");
-   kine_dd->Draw("same");
-   kine_d3He->Draw("same");
-   kine_12C12C->Draw("same");
-   histEstimatedKinEVThetaLABSiC->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABSiC->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_Si13B = new TCanvas();
-   histEstimatedKinEVThetaLABSi13B->Draw("zcol");
-   kine_dd->Draw("same");
-   kine_d3He->Draw("same");
-   kine_12C12C->Draw("same");
-   histEstimatedKinEVThetaLABSi13B->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABSi13B->GetYaxis()->SetTitle("roughKinE [MeV]");
-   
-   TCanvas *c3_SiBe = new TCanvas();
-   histEstimatedKinEVThetaLABSiBe->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   histEstimatedKinEVThetaLABSiBe->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABSiBe->GetYaxis()->SetTitle("roughKinE [MeV]");
-
-   TCanvas *c3_SiGaggBe = new TCanvas();
-   histEstimatedKinEVThetaLABSiGaggBe->Draw("zcol");
-   kine_d3He->Draw("same");
-   kine_d3HeEx2_2->Draw("same");
-   kine_d3HeEx2_7->Draw("same");
-   histEstimatedKinEVThetaLABSiGaggBe->GetXaxis()->SetTitle("#theta_{LAB} [deg]");
-   histEstimatedKinEVThetaLABSiGaggBe->GetYaxis()->SetTitle("roughKinE [MeV]");
-   
-   TCanvas *c4 = new TCanvas();
-   histdEdxVTotalRange->Draw("zcol");
-   cutPID3He->Draw("same");
-   cutPIDproton->Draw("same");
-   cutPIDdeuteron->Draw("same");
-   histdEdxVTotalRange->GetXaxis()->SetTitle("roughRange [mm]");
-   histdEdxVTotalRange->GetYaxis()->SetTitle("#frac{dE}{dx} [ADC/mm]");
-   
-   
-   TCanvas *c5 = new TCanvas();
-   histESmallVTotalRange->Draw("zcol");
-   histESmallVTotalRange->GetXaxis()->SetTitle("smallRange [mm]");
-   histESmallVTotalRange->GetYaxis()->SetTitle("E^{small}_{Loss} [ADC]");
-
-   TCanvas *c6 = new TCanvas();
-   histEBigVBigRange->Draw("zcol");
-   histEBigVBigRange->GetXaxis()->SetTitle("bigRange [mm]");
-   histEBigVBigRange->GetYaxis()->SetTitle("E^{big}_{Loss} [ADC]");
-
-   TCanvas *c7 = new TCanvas();
-   histSiPIDTraceIntegral->Draw("zcol");
-   histSiPIDTraceIntegral->GetXaxis()->SetTitle("E2 [ADC]");
-   histSiPIDTraceIntegral->GetYaxis()->SetTitle("E1 [ADC]");
-   
-   TCanvas *c8 = new TCanvas();
-   histSiPIDADCMax->Draw("zcol");
-   cutSiB->Draw("same");
-   cutSiC->Draw("same");
-   cutSi13B->Draw("same");
-   cutSiBe->Draw("same");
-   histSiPIDADCMax->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMax->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-   
-   
-   TCanvas *c8_3He = new TCanvas();
-   histSiPIDADCMax3He->Draw("zcol");
-   histSiPIDADCMax3He->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMax3He->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-   
-   TCanvas *c8_3HeGaggBe = new TCanvas();
-   histSiPIDADCMax3HeGaggBe->Draw("zcol");
-   histSiPIDADCMax3HeGaggBe->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMax3HeGaggBe->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-   
-   TCanvas *c8_GaggBe = new TCanvas();
-   histSiPIDADCMaxGaggBe->Draw("zcol");
-   histSiPIDADCMaxGaggBe->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMaxGaggBe->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-   
-   TCanvas *c8_GaggLi = new TCanvas();
-   histSiPIDADCMaxGaggLi->Draw("zcol");
-   histSiPIDADCMaxGaggLi->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMaxGaggLi->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-
-   TCanvas *c8_2H = new TCanvas();
-   histSiPIDADCMax2H->Draw("zcol");
-   histSiPIDADCMax2H->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMax2H->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-   
-   TCanvas *c8_1H = new TCanvas();
-   histSiPIDADCMax1H->Draw("zcol");
-   histSiPIDADCMax1H->GetXaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   histSiPIDADCMax1H->GetYaxis()->SetTitle("ADC^{max}_{1} [ADC]");
-
-   TCanvas *c9 = new TCanvas();
-   histSiMultiplicityFront1->Draw();
-
-   TCanvas *c10 = new TCanvas();
-   histSiMultiplicityFront2->Draw();
-   */
-/*
-   TCanvas *c11 = new TCanvas();
-   histGaggPIDADCMax->Draw("colz");
-   cutGaggB->Draw("same");
-   cutGaggBe->Draw("same");
-   cutGaggLi->Draw("same");
-   cutGaggHe->Draw("same");
-   histGaggPIDADCMax->GetXaxis()->SetTitle("#Sigma ADC^{max}_{Gagg} [ADC]");
-   histGaggPIDADCMax->GetYaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-   */
-   
-   /*
-   TCanvas *c11_3HeSiB = new TCanvas();
-   histGaggPIDADCMax3HeSiB->Draw("colz");
-   //cutGaggC->Draw("same");
-   histGaggPIDADCMax3HeSiB->GetXaxis()->SetTitle("#Sigma ADC^{max}_{Gagg} [ADC]");
-   histGaggPIDADCMax3HeSiB->GetYaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-
-   TCanvas *c11_SiB = new TCanvas();
-   histGaggPIDADCMaxSiB->Draw("colz");
-   //cutGaggC->Draw("same");
-   histGaggPIDADCMaxSiB->GetXaxis()->SetTitle("#Sigma ADC^{max}_{Gagg} [ADC]");
-   histGaggPIDADCMaxSiB->GetYaxis()->SetTitle("ADC^{max}_{2} [ADC]");
-
-   TCanvas *c12 = new TCanvas();
-   histGaggMultiplicity1->Draw();
-
-   TCanvas *c13 = new TCanvas();
-   histGaggMultiplicity2->Draw();
-
-   //save hist
-
-   TIter next(gROOT->GetListOfCanvases());
-   TObject *obj;
-   while ((obj=next())){
-     if (obj->InheritsFrom("TH1")){
-       obj->Write(obj->GetName());
-     }
-   }
-   outfile->Close();
-   */
    outfile->Close();
 }
 

@@ -8,7 +8,7 @@ if [ $# -lt 1 ]; then
 fi
 
 for runNum in "$@"; do
-	logFile="$logDir/run$runNum.log"
+	logFile="$logDir/FULLCAL_run$runNum.log"
 	echo "Processing run: $runNum (>'-')>.h5 "
 
 	root -b -q -l "unpack_rcnp.C($runNum)" > >(tail -n 10000 > $logFile) 2>&1

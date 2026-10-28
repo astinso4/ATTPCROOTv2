@@ -1,7 +1,12 @@
-void run_eve(int runNum = 3001, TString OutputDataFile = "./run_3001_display.root")
+void run_eve()
 {
-  TString InputDataFile = TString::Format("/home/astinson/e535rawdata/UnpackerOutput/run_%04d.root", runNum);
-  std::cout << "Opening: " << InputDataFile << std::endl;
+   int runNum;
+   std::cout << "File to visualize: ";
+   std::cin >> runNum;
+
+   TString OutputDataFile = TString::Format("./visualizations/run_%04d_display.root", runNum);
+   TString InputDataFile = TString::Format("/home/astinson/e535rawdata/UnpackerTestOutput/run_%04d_Mlesac.root", runNum);
+   std::cout << "Opening: " << InputDataFile << std::endl;
 
    TString dir = getenv("VMCWORKDIR");
    TString geoFile = "RCNP_ATTPC_494_3torr_geomanager.root";
